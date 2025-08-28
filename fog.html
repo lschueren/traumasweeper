@@ -1,3 +1,5 @@
+this is a game.
+the Level Up continue button does not work
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,64 +13,166 @@
             align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
             font-family: 'Arial', sans-serif;
             flex-direction: column;
             gap: 20px;
+            color: #333;
+            overflow: hidden; /* Prevent body scrolling */
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 10px 20px;
+            border-bottom: 2px solid #e0e6ed;
+            margin-bottom: 20px;
         }
 
         h1 {
-            color: #333;
-            font-size: 2em;
-        }
-
-        #game-info {
-            display: flex;
-            justify-content: space-between;
-            width: 800px;
-            margin-bottom: 10px;
-        }
-
-        #bomb-counter, #level-counter {
-            font-size: 1.5em;
+            font-size: 2.2em;
             font-weight: bold;
-            color: #555;
+            color: #4a5568;
+            letter-spacing: -0.5px;
+        }
+
+        #level-counter, #bomb-counter {
+            font-size: 1.6em;
+            font-weight: bold;
+            color: #2b6cb0;
         }
 
         canvas {
-            border: 2px solid #333;
-            background-color: white;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border: 5px solid #4a5568;
+            background-color: #f7fafc;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 30px 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            z-index: 10;
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .message-box h2 {
+            font-size: 2.5em;
+            margin: 0;
+            color: #c53030;
+        }
+
+        .message-box p {
+            font-size: 1.2em;
+            margin: 0;
+            color: #4a5568;
+        }
+
+        .message-box button {
+            background: linear-gradient(90deg, #4299e1 0%, #3182ce 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .message-box button:hover {
+            background: linear-gradient(90deg, #3182ce 0%, #2c5282 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        #health-bar-container {
+            width: 150px;
+            height: 15px;
+            background-color: #e2e8f0;
+            border-radius: 8px;
+            border: 2px solid #cbd5e0;
+            margin-top: 10px;
+            overflow: hidden;
+            align-self: flex-start; /* Align to the left of the container */
+        }
+
+        #health-bar {
+            height: 100%;
+            background: #e53e3e;
+            transition: width 0.3s ease-in-out;
         }
     </style>
 </head>
 <body>
 
-    <div id="game-info">
-        <h1 id="level-counter">Level: 1</h1>
-        <h1 id="bomb-counter">Traumas: 11</h1>
+    <div class="game-container">
+        <div class="game-header">
+            <h1 id="level-counter">Level: 1</h1>
+            <h1 id="bomb-counter">Traumas: 11</h1>
+        </div>
+        <div id="health-bar-container">
+            <div id="health-bar"></div>
+        </div>
+        <canvas id="myCanvas" width="800" height="600"></canvas>
     </div>
-    <canvas id="myCanvas" width="800" height="600"></canvas>
-    <p>arrow keys to move</p>
-    <p>avoid the traumas! survive until they disappear</p>
+    <div class="message-box" id="gameOverBox">
+        <h2>GAME OVER</h2>
+        <p>You succumbed to your traumas.</p>
+        <button onclick="resetGame()">Try Again</button>
+    </div>
+    <div class="message-box" id="levelUpBox">
+        <h2>LEVEL UP!</h2>
+        <p>You have overcome your traumas.</p>
+        <button onclick="nextLevel()">Continue</button>
+    </div>
+
     <script>
         const canvas = document.getElementById('myCanvas');
         const ctx = canvas.getContext('2d');
         const bombCounterDisplay = document.getElementById('bomb-counter');
         const levelCounterDisplay = document.getElementById('level-counter');
-
-        // Create an off-screen canvas to act as the "fog of war" layer
+        const gameOverBox = document.getElementById('gameOverBox');
+        const levelUpBox = document.getElementById('levelUpBox');
+        const healthBar = document.getElementById('health-bar');
+        const healthBarContainer = document.getElementById('health-bar-container');
+        
+        let healthFlashTimeout = null;
+        let isFlashing = false;
+        let keys = {};
+        let animationFrame = 0;
+        let isGameOver = false;
+        let isLevelUp = false;
+        let gameActive = true;
+        
         const fogCanvas = document.createElement('canvas');
         const fogCtx = fogCanvas.getContext('2d');
-        fogCanvas.width = canvas.width;
-        fogCanvas.height = canvas.height;
+        fogCtx.canvas.willReadFrequently = true;
 
-        // Initially fill the fog canvas with black
-        fogCtx.fillStyle = 'black';
-        fogCtx.fillRect(0, 0, fogCanvas.width, fogCanvas.height);
-
-        // Red Circle properties (controlled by user)
-        const redCircle = {
+        const player = {
             x: canvas.width / 2,
             y: canvas.height / 2,
             radius: 10,
@@ -80,97 +184,112 @@
             isInvincible: false,
             flashTimer: 0
         };
-        const redCircleSpeed = 4;
-        let clearingRadius = 25; // Define a consistent clearing radius for movement
+        const playerSpeed = 4;
+        const initialClearingRadius = 25;
+        let clearingRadius = initialClearingRadius;
         let currentLevel = 1;
+        const initialTraumaRadiusRange = 20;
+        const initialTraumaMinRadius = 10;
 
-        // Define bomb colors
-        const bombColors = ['blue', 'purple', 'green', 'orange', 'lime', 'magenta', 'cyan', 'yellow', 'gray', 'pink', 'teal'];
+        const traumas = [];
+        const traumaColors = ['#f56565', '#9f7aea', '#48bb78', '#f6ad55', '#93c5fd', '#d53f8c', '#4fd1c5', '#ecc94b', '#a0aec0', '#ed64a6', '#4a5568'];
+        const numTraumasPerLevel = 11;
+        const rings = [];
+        let canSpawnRings = true;
+        const ringCooldown = 500;
+        const floatingNumbers = [];
 
-        // Bomb properties (moving by itself)
-        const bombs = [];
-        function createBombs() {
-            bombs.length = 0; // Clear the array
-            for (let i = 0; i < 11; i++) {
-                let bombX, bombY;
+        function createTraumas() {
+            traumas.length = 0;
+            const numTraumas = numTraumasPerLevel * currentLevel;
+            for (let i = 0; i < numTraumas; i++) {
+                let traumaX, traumaY;
+                let minDistance = 50 + (currentLevel - 1) * 5;
                 do {
-                    bombX = Math.random() * canvas.width;
-                    bombY = Math.random() * canvas.height;
-                } while (Math.hypot(bombX - redCircle.x, bombY - redCircle.y) < 50); // Ensure a starting distance of at least 50px
+                    traumaX = Math.random() * (canvas.width - 40) + 20;
+                    traumaY = Math.random() * (canvas.height - 40) + 20;
+                } while (Math.hypot(traumaX - player.x, traumaY - player.y) < minDistance);
 
-                bombs.push({
-                    x: bombX,
-                    y: bombY,
-                    radius: Math.random() * 30 + 24, // Increased size range (24 to 54)
-                    color: bombColors[i], // Assign a different color
-                    dx: (Math.random() * 4 - 2) * (Math.random() * 0.5 + 0.5),
-                    dy: (Math.random() * 4 - 2) * (Math.random() * 0.5 + 0.5),
+                traumas.push({
+                    x: traumaX,
+                    y: traumaY,
+                    radius: Math.random() * initialTraumaRadiusRange + initialTraumaMinRadius,
+                    color: traumaColors[i % traumaColors.length],
+                    dx: (Math.random() * 4 - 2) * (currentLevel * 0.5),
+                    dy: (Math.random() * 4 - 2) * (currentLevel * 0.5),
                     isRevealed: false,
                     isHit: false,
+                    hitByRing: false,
                     hitTimer: 0,
+                    sizeChangeTimer: 0,
+                    targetRadius: 0,
                     originalDx: 0,
                     originalDy: 0
                 });
             }
         }
-        createBombs();
-
-        let keys = {};
-        let animationFrame = 0;
-        let gameOver = false;
-        let levelUp = false;
-        let levelUpTimer = 0;
-
-        document.addEventListener('keydown', (e) => {
-            if (e.repeat || gameOver || levelUp) return;
-            keys[e.key] = true;
-            updateRedCircleVelocity();
-        });
-
-        document.addEventListener('keyup', (e) => {
-            if (gameOver || levelUp) return;
-            keys[e.key] = false;
-            updateRedCircleVelocity();
-        });
         
-        function updateRedCircleVelocity() {
-            redCircle.dx = 0;
-            redCircle.dy = 0;
+        function resizeCanvas() {
+            const container = document.querySelector('.game-container');
+            const newWidth = Math.min(800, container.clientWidth - 40);
+            canvas.width = newWidth;
+            canvas.height = newWidth * 0.75;
+            
+            fogCanvas.width = canvas.width;
+            fogCanvas.height = canvas.height;
+            fogCtx.fillStyle = 'black';
+            fogCtx.fillRect(0, 0, fogCanvas.width, fogCanvas.height);
+        }
+        
+        function updatePlayerVelocity() {
+            player.dx = 0;
+            player.dy = 0;
 
-            if (keys['ArrowRight']) {
-                redCircle.dx = redCircleSpeed;
-            } else if (keys['ArrowLeft']) {
-                redCircle.dx = -redCircleSpeed;
+            if (keys['ArrowRight'] || keys['d']) {
+                player.dx = playerSpeed;
+            } else if (keys['ArrowLeft'] || keys['a']) {
+                player.dx = -playerSpeed;
             }
 
-            if (keys['ArrowDown']) {
-                redCircle.dy = redCircleSpeed;
-            } else if (keys['ArrowUp']) {
-                redCircle.dy = -redCircleSpeed;
+            if (keys['ArrowDown'] || keys['s']) {
+                player.dy = playerSpeed;
+            } else if (keys['ArrowUp'] || keys['w']) {
+                player.dy = -playerSpeed;
+            }
+        }
+        
+        function spawnRings() {
+            for (let i = 0; i < 3; i++) {
+                rings.push({
+                    x: player.x,
+                    y: player.y,
+                    radius: 0,
+                    alpha: 1,
+                    lineWidth: 3,
+                    speed: 1 + i * 0.2
+                });
             }
         }
 
-        function clearFogAtRedCircle() {
+        function clearFogAtPlayer() {
             fogCtx.globalCompositeOperation = 'destination-out';
             fogCtx.beginPath();
-            fogCtx.arc(redCircle.x, redCircle.y, clearingRadius, 0, Math.PI * 2, false);
+            fogCtx.arc(player.x, player.y, clearingRadius, 0, Math.PI * 2, false);
             fogCtx.fillStyle = 'black';
             fogCtx.fill();
             fogCtx.closePath();
             fogCtx.globalCompositeOperation = 'source-over';
         }
-        
-        function drawBomb(x, y, color, isRevealed, radius, isHit, hitTimer) {
-            ctx.save();
-            ctx.translate(x, y);
 
-            // Flash the bomb if it is hit and the timer is active
-            if (isHit && hitTimer % 10 < 5) {
-                // Do not draw the bomb
-            } else {
+        function drawTrauma(trauma) {
+            ctx.save();
+            ctx.translate(trauma.x, trauma.y);
+
+            if (trauma.isHit && Math.floor(trauma.hitTimer / 5) % 2 === 0) {
+                const flashColor = trauma.hitByRing ? 'green' : trauma.color;
                 const numSpikes = 8;
-                const outerRadius = radius;
-                const innerRadius = radius * 0.6;
+                const outerRadius = trauma.radius;
+                const innerRadius = trauma.radius * 0.6;
                 const angleStep = (Math.PI * 2) / numSpikes;
 
                 ctx.beginPath();
@@ -191,288 +310,396 @@
                     ctx.lineTo(innerX, innerY);
                 }
                 ctx.closePath();
-                ctx.fillStyle = color;
+                ctx.fillStyle = flashColor;
                 ctx.fill();
+            } else {
+                const numSpikes = 8;
+                const outerRadius = trauma.radius;
+                const innerRadius = trauma.radius * 0.6;
+                const angleStep = (Math.PI * 2) / numSpikes;
 
-                if (isRevealed) {
-                    const eyeYOffset = -2;
-                    ctx.fillStyle = 'white';
-                    if (animationFrame === 0) {
-                        ctx.fillRect(-3, eyeYOffset, 2, 2);
-                        ctx.fillRect(1, eyeYOffset, 2, 2);
+                ctx.beginPath();
+                for (let i = 0; i < numSpikes; i++) {
+                    const outerAngle = i * angleStep;
+                    const innerAngle = outerAngle + angleStep / 2;
+                    
+                    const outerX = outerRadius * Math.cos(outerAngle);
+                    const outerY = outerRadius * Math.sin(outerAngle);
+                    const innerX = innerRadius * Math.cos(innerAngle);
+                    const innerY = innerRadius * Math.sin(innerAngle);
+
+                    if (i === 0) {
+                        ctx.moveTo(outerX, outerY);
                     } else {
-                        ctx.fillRect(-3, eyeYOffset + 1, 2, 2);
-                        ctx.fillRect(1, eyeYOffset + 1, 2, 2);
+                        ctx.lineTo(outerX, outerY);
                     }
-
-                    ctx.beginPath();
-                    ctx.moveTo(0, -8);
-                    ctx.lineTo(5, -12);
-                    ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
+                    ctx.lineTo(innerX, innerY);
                 }
+                ctx.closePath();
+                ctx.fillStyle = trauma.color;
+                ctx.fill();
+            }
+
+            if (trauma.isRevealed) {
+                const eyeYOffset = -2;
+                ctx.fillStyle = 'white';
+                if (animationFrame === 0) {
+                    ctx.fillRect(-3, eyeYOffset, 2, 2);
+                    ctx.fillRect(1, eyeYOffset, 2, 2);
+                } else {
+                    ctx.fillRect(-3, eyeYOffset + 1, 2, 2);
+                    ctx.fillRect(1, eyeYOffset + 1, 2, 2);
+                }
+                ctx.beginPath();
+                ctx.moveTo(0, -8);
+                ctx.lineTo(5, -12);
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 1;
+                ctx.stroke();
             }
             ctx.restore();
         }
 
-        function checkCollisions() {
-            if (redCircle.isInvincible) return;
+        function drawRings() {
+            for (let i = rings.length - 1; i >= 0; i--) {
+                const ring = rings[i];
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2, false);
+                ctx.strokeStyle = `rgba(0, 255, 0, ${ring.alpha})`;
+                ctx.lineWidth = ring.lineWidth;
+                ctx.stroke();
+                ctx.restore();
 
-            for (const bomb of bombs) {
-                const distance = Math.hypot(bomb.x - redCircle.x, bomb.y - redCircle.y);
-                if (distance < bomb.radius + redCircle.radius) {
-                    redCircle.health -= 5;
-                    redCircle.isInvincible = true;
-                    redCircle.flashTimer = 0;
-                    if (redCircle.health <= 0) {
-                        gameOver = true;
-                    }
-
-                    // Bomb hit behavior
-                    if (!bomb.isHit) {
-                        bomb.isHit = true;
-                        bomb.hitTimer = 0;
-                        bomb.originalDx = bomb.dx;
-                        bomb.originalDy = bomb.dy;
-                        bomb.dx = 0;
-                        bomb.dy = 0;
+                for (const trauma of traumas) {
+                    if (trauma.isRevealed && !trauma.isHit) {
+                        const distance = Math.abs(Math.hypot(trauma.x - ring.x, trauma.y - ring.y) - ring.radius);
+                        const tolerance = ring.speed * 2;
+                        if (distance < tolerance) {
+                            trauma.isHit = true;
+                            trauma.hitTimer = 0;
+                            trauma.hitByRing = true;
+                            trauma.originalDx = trauma.dx;
+                            trauma.originalDy = trauma.dy;
+                            trauma.dx = 0;
+                            trauma.dy = 0;
+                            player.health += 1;
+                            if (player.health > player.maxHealth) {
+                                player.health = player.maxHealth;
+                            }
+                            flashHealthBar(true);
+                            floatingNumbers.push({
+                                x: trauma.x,
+                                y: trauma.y,
+                                value: 1,
+                                alpha: 1,
+                                color: 'green',
+                                dx: trauma.originalDx,
+                                dy: trauma.originalDy
+                            });
+                        }
                     }
                 }
+
+                ring.radius += ring.speed;
+                ring.alpha -= 0.015;
+
+                if (ring.alpha <= 0) {
+                    rings.splice(i, 1);
+                }
             }
+        }
+
+        function drawFloatingNumbers() {
+            for (let i = floatingNumbers.length - 1; i >= 0; i--) {
+                const num = floatingNumbers[i];
+                ctx.save();
+                ctx.fillStyle = `rgba(${num.color === 'green' ? '0, 255, 0' : '255, 0, 0'}, ${num.alpha})`;
+                ctx.font = 'bold 16px "Pixelated Font", monospace';
+                ctx.textAlign = 'center';
+
+                const displayText = num.color === 'green' ? `+${Math.round(num.value)}` : `-${Math.round(num.value)}`;
+                
+                ctx.fillText(displayText, num.x, num.y);
+                ctx.restore();
+
+                if (num.color === 'red') {
+                    num.x += player.dx;
+                    num.y += player.dy;
+                } else {
+                    num.x += num.dx;
+                    num.y += num.dy;
+                }
+
+                num.y -= 0.5;
+                num.alpha -= 0.02;
+
+                if (num.alpha <= 0) {
+                    floatingNumbers.splice(i, 1);
+                }
+            }
+        }
+        
+        function flashHealthBar(isHealing) {
+            clearTimeout(healthFlashTimeout);
+            isFlashing = true;
+            const flashColor = isHealing ? '#00FF00' : '#FF0000';
+            healthBar.style.backgroundColor = flashColor;
+            
+            healthFlashTimeout = setTimeout(() => {
+                isFlashing = false;
+                drawHealthBar();
+            }, 200);
         }
 
         function drawHealthBar() {
-            const barWidth = 150;
-            const barHeight = 15;
-            const x = canvas.width - barWidth - 10;
-            const y = 10;
-            
-            ctx.fillStyle = '#ccc';
-            ctx.fillRect(x, y, barWidth, barHeight);
+            const healthBar = document.getElementById('health-bar');
+            if (healthBar) {
+              if (!isFlashing) {
+                healthBar.style.backgroundColor = player.health > 50 ? '#48bb78' : player.health > 20 ? '#f6ad55' : '#e53e3e';
+              }
+              healthBar.style.width = `${(player.health / player.maxHealth) * 100}%`;
+            }
+        }
 
-            const healthWidth = (redCircle.health / redCircle.maxHealth) * barWidth;
-            ctx.fillStyle = 'red';
-            ctx.fillRect(x, y, healthWidth, barHeight);
+        function drawPlayer() {
+            if (player.isInvincible && Math.floor(player.flashTimer / 5) % 2 === 0) {
+                return;
+            }
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2, false);
+            ctx.fillStyle = player.color;
+            ctx.fill();
+            ctx.closePath();
+        }
 
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x, y, barWidth, barHeight);
+        function drawUI() {
+            levelCounterDisplay.textContent = `Level: ${currentLevel}`;
+            bombCounterDisplay.textContent = `Traumas: ${traumas.length}`;
+            drawHealthBar();
+        }
+
+        function checkCollisions() {
+            if (player.isInvincible) return;
+            const initialDamage = 5;
+            const sizeDamageFactor = 0.5;
+
+            for (const trauma of traumas) {
+                const distance = Math.hypot(trauma.x - player.x, trauma.y - player.y);
+                if (distance < trauma.radius + player.radius) {
+                    const damage = initialDamage + (trauma.radius - initialTraumaMinRadius) * sizeDamageFactor;
+                    player.health -= damage;
+                    player.isInvincible = true;
+                    player.flashTimer = 0;
+                    if (player.health <= 0) {
+                        isGameOver = true;
+                    }
+                    if (!trauma.isHit) {
+                        trauma.isHit = true;
+                        trauma.hitTimer = 0;
+                        trauma.originalDx = trauma.dx;
+                        trauma.originalDy = trauma.dy;
+                        trauma.dx = 0;
+                        trauma.dy = 0;
+                        trauma.hitByRing = false;
+                        flashHealthBar(false);
+                        floatingNumbers.push({
+                            x: player.x,
+                            y: player.y - player.radius,
+                            value: damage,
+                            alpha: 1,
+                            color: 'red',
+                            dx: player.dx,
+                            dy: player.dy
+                        });
+                    }
+                }
+            }
+        }
+        
+        function showMessageBox(boxId) {
+            gameOverBox.style.display = 'none';
+            levelUpBox.style.display = 'none';
+            document.getElementById(boxId).style.display = 'flex';
+        }
+
+        function hideMessageBox(boxId) {
+            document.getElementById(boxId).style.display = 'none';
         }
 
         function resetGame() {
-            redCircle.x = canvas.width / 2;
-            redCircle.y = canvas.height / 2;
-            redCircle.dx = 0;
-            redCircle.dy = 0;
-            redCircle.health = 100;
-            redCircle.isInvincible = false;
-            redCircle.flashTimer = 0;
-            
+            hideMessageBox('gameOverBox');
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+            player.dx = 0;
+            player.dy = 0;
+            player.health = 100;
+            player.isInvincible = false;
+            player.flashTimer = 0;
+            isGameOver = false;
+            isLevelUp = false;
+            currentLevel = 1;
+            clearingRadius = initialClearingRadius;
+            keys = {};
+            floatingNumbers.length = 0;
+            createTraumas();
             fogCtx.fillStyle = 'black';
             fogCtx.fillRect(0, 0, fogCanvas.width, fogCanvas.height);
-            
-            createBombs();
-            
-            gameOver = false;
-            levelUp = false;
-            levelCounterDisplay.textContent = `Level: ${currentLevel}`;
-            bombCounterDisplay.textContent = `Traumas: ${bombs.length}`;
-            requestAnimationFrame(draw);
+            drawUI();
+            gameActive = true;
         }
 
-        function drawGameOver() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 48px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 30);
+     function nextLevel() {
+    hideMessageBox('levelUpBox');
+    player.x = canvas.width / 2;
+    player.y = canvas.height / 2;
+    player.dx = 0;
+    player.dy = 0;
+    player.health = 100;
 
-            // Draw the "Play Again" button
-            const buttonWidth = 150;
-            const buttonHeight = 40;
-            const buttonX = canvas.width / 2 - buttonWidth / 2;
-            const buttonY = canvas.height / 2 + 10;
+    isLevelUp = false;        // reset flag
+    gameActive = true;        // make sure loop runs again
 
-            ctx.fillStyle = 'rgba(0, 128, 0, 0.8)';
-            ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
-            
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 18px Arial';
-            ctx.fillText('Play Again', canvas.width / 2, canvas.height / 2 + 35);
-        }
-        
-        function drawLevelUp() {
-            if (levelUpTimer % 20 < 10) { // Flashes on and off
-                ctx.fillStyle = 'green';
-                ctx.font = 'bold 48px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('LEVEL UP!', canvas.width / 2, canvas.height / 2);
-            }
-            levelUpTimer++;
-        }
+    clearingRadius += 5;
+    keys = {};
+    floatingNumbers.length = 0;
 
-        canvas.addEventListener('click', (e) => {
-            if (gameOver) {
-                const rect = canvas.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const mouseY = e.clientY - rect.top;
+    createTraumas();
+    fogCtx.fillStyle = 'black';
+    fogCtx.fillRect(0, 0, fogCanvas.width, fogCanvas.height);
+    drawUI();
+}
 
-                const buttonX = canvas.width / 2 - 75;
-                const buttonY = canvas.height / 2 + 10;
-                
-                if (mouseX >= buttonX && mouseX <= buttonX + 150 && mouseY >= buttonY && mouseY <= buttonY + 40) {
-                    clearingRadius = 25; // Reset clearing radius for a new game
-                    currentLevel = 1;
-                    resetGame();
-                }
+        document.addEventListener('keydown', (e) => {
+            if (!gameActive) return;
+            keys[e.key] = true;
+            if (e.key === ' ' && canSpawnRings) {
+                spawnRings();
+                canSpawnRings = false;
+                setTimeout(() => {
+                    canSpawnRings = true;
+                }, ringCooldown);
             }
         });
+        document.addEventListener('keyup', (e) => {
+            if (!gameActive) return;
+            keys[e.key] = false;
+        });
 
-        function draw() {
-            if (gameOver) {
-                drawGameOver();
-                return;
-            }
-
-            // Check if all bombs are gone to trigger level up
-            if (bombs.length === 0 && !levelUp) {
-                levelUp = true;
-                levelUpTimer = 0;
-                currentLevel++;
-            }
-
-            if (levelUp) {
-                drawLevelUp();
-                if (levelUpTimer > 120) { // 2 seconds of flashing
-                    clearingRadius *= 1.2; // Increase clearing radius by 20%
-                    resetGame();
-                }
-                requestAnimationFrame(draw);
-                return;
-            }
-
-            animationFrame = (animationFrame + 1) % 2;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            const remainingBombs = [];
-            for (const bomb of bombs) {
-                if (bomb.radius > 10) {
-                    drawBomb(bomb.x, bomb.y, bomb.color, bomb.isRevealed, bomb.radius, bomb.isHit, bomb.hitTimer);
-                    remainingBombs.push(bomb);
-                }
-            }
-            bombs.length = 0; 
-            bombs.push(...remainingBombs);
-            bombCounterDisplay.textContent = `Traumas: ${bombs.length}`;
-
-            for (const bomb of bombs) {
-                if (!bomb.isRevealed) {
-                    const imageData = fogCtx.getImageData(bomb.x, bomb.y, 1, 1).data;
-                    if (imageData[3] === 0) {
-                        bomb.isRevealed = true;
-                    }
-                }
-            }
-
-            ctx.drawImage(fogCanvas, 0, 0);
-
-            // Flash the red dot if it is invincible
-            if (redCircle.isInvincible && redCircle.flashTimer % 10 < 5) {
-                // Do not draw the dot
-            } else {
-                ctx.beginPath();
-                ctx.arc(redCircle.x, redCircle.y, redCircle.radius, 0, Math.PI * 2, false);
-                ctx.fillStyle = redCircle.color;
-                ctx.fill();
-                ctx.closePath();
-            }
-            
-            const revealedBombs = bombs.filter(bomb => bomb.isRevealed);
-            for (let i = 0; i < revealedBombs.length; i++) {
-                const bomb = revealedBombs[i];
-                const angle = Math.atan2(bomb.y - redCircle.y, bomb.x - redCircle.x);
-                const distanceToBomb = Math.hypot(bomb.x - redCircle.x, bomb.y - redCircle.y);
+        // Main game loop
+        function gameLoop() {
+            if (gameActive) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                updatePlayerVelocity();
                 
-                const minRadius = 1;
-                const maxRadius = 2;
-                const maxDistance = Math.hypot(canvas.width, canvas.height);
+                const remainingTraumas = [];
+                for (const trauma of traumas) {
+                    if (trauma.radius > 5) {
+                        drawTrauma(trauma);
+                        remainingTraumas.push(trauma);
+                    }
+                }
+                traumas.length = 0; 
+                traumas.push(...remainingTraumas);
+                
+                for (const trauma of traumas) {
+                    if (!trauma.isRevealed) {
+                        const imageData = fogCtx.getImageData(trauma.x, trauma.y, 1, 1).data;
+                        if (imageData[3] === 0) {
+                            trauma.isRevealed = true;
+                        }
+                    }
+                }
+                player.x += player.dx;
+                player.y += player.dy;
 
-                const normalizedDistance = Math.min(1, distanceToBomb / (maxDistance * 0.5));
-                const indicatorRadius = maxRadius - (normalizedDistance * (maxRadius - minRadius));
+                if (player.x + player.radius > canvas.width) player.x = canvas.width - player.radius;
+                if (player.x - player.radius < 0) player.x = player.radius;
+                if (player.y + player.radius > canvas.height) player.y = canvas.height - player.radius;
+                if (player.y - player.radius < 0) player.y = player.radius;
 
-                const ringRadius = redCircle.radius + 15;
+                clearFogAtPlayer();
+                ctx.drawImage(fogCanvas, 0, 0);
+                drawPlayer();
+                
+                const revealedTraumas = traumas.filter(trauma => trauma.isRevealed);
+                for (const trauma of revealedTraumas) {
+                    const angle = Math.atan2(trauma.y - player.y, trauma.x - player.x);
+                    const distanceToTrauma = Math.hypot(trauma.x - player.x, trauma.y - player.y);
+                    const minRadius = 1;
+                    const maxRadius = 3;
+                    const maxDistance = Math.hypot(canvas.width, canvas.height);
+                    const normalizedDistance = Math.min(1, distanceToTrauma / maxDistance);
+                    const indicatorRadius = minRadius + (1 - normalizedDistance) * (maxRadius - minRadius);
 
-                const indicatorX = redCircle.x + ringRadius * Math.cos(angle);
-                const indicatorY = redCircle.y + ringRadius * Math.sin(angle);
+                    ctx.beginPath();
+                    ctx.arc(player.x + (player.radius + 15) * Math.cos(angle), player.y + (player.radius + 15) * Math.sin(angle), indicatorRadius, 0, Math.PI * 2, false);
+                    ctx.fillStyle = trauma.color;
+                    ctx.fill();
+                }
 
-                ctx.beginPath();
-                ctx.arc(indicatorX, indicatorY, indicatorRadius, 0, Math.PI * 2, false);
-                ctx.fillStyle = bomb.color;
-                ctx.fill();
+                drawRings();
+                drawFloatingNumbers();
+                checkCollisions();
+                drawUI();
+                
+                if (player.isInvincible) {
+                    player.flashTimer++;
+                    if (player.flashTimer > 60) {
+                        player.isInvincible = false;
+                    }
+                }
+
+                for (const trauma of traumas) {
+                    if (trauma.isHit) {
+                        trauma.hitTimer++;
+                        if (trauma.hitByRing) {
+                            trauma.radius -= 0.1;
+                        } else {
+                            trauma.radius += 0.1;
+                        }
+                        if (trauma.hitTimer > 120) {
+                            trauma.isHit = false;
+                            trauma.dx = trauma.originalDx;
+                            trauma.dy = trauma.originalDy;
+                            trauma.hitByRing = false;
+                        }
+                    } else {
+                        trauma.radius -= 0.008;
+                    }
+
+                    trauma.x += trauma.dx;
+                    trauma.y += trauma.dy;
+
+                    if (trauma.x + trauma.radius > canvas.width || trauma.x - trauma.radius < 0) {
+                        trauma.dx = -trauma.dx;
+                    }
+                    if (trauma.y + trauma.radius > canvas.height || trauma.y - trauma.radius < 0) {
+                        trauma.dy = -trauma.dy;
+                    }
+                }
+
+                animationFrame = (animationFrame + 1) % 2;
             }
-
-            redCircle.x += redCircle.dx;
-            redCircle.y += redCircle.dy;
-
-            clearFogAtRedCircle();
-            checkCollisions();
-            drawHealthBar();
             
-            // Manage invincibility time
-            if (redCircle.isInvincible) {
-                redCircle.flashTimer++;
-                if (redCircle.flashTimer > 60) { // 60 frames = 1 second
-                    redCircle.isInvincible = false;
-                }
-            }
+      if (isGameOver) {
+    showMessageBox('gameOverBox');
+    gameActive = false;
+} else if (!isLevelUp && traumas.length === 0) {  // only trigger once
+    isLevelUp = true;
+    currentLevel++;
+    showMessageBox('levelUpBox');
+    gameActive = false;
+}
 
-            for (const bomb of bombs) {
-                // Manage bomb hit timer and size increase
-                if (bomb.isHit) {
-                    bomb.hitTimer++;
-                    if (bomb.hitTimer > 120) { // 120 frames = 2 seconds
-                        bomb.isHit = false;
-                        bomb.radius = bomb.radius * 1.2; // Increase size by 20%
-                        bomb.dx = bomb.originalDx; // Resume movement
-                        bomb.dy = bomb.originalDy;
-                    }
-                } else {
-                    // Shrink bombs that are not hit
-                    if (bomb.radius > 10) {
-                         bomb.radius -= 0.008; // Increased size decrease factor from 0.004 to 0.008
-                    }
-                }
-
-                bomb.x += bomb.dx;
-                bomb.y += bomb.dy;
-
-                if (bomb.x + bomb.radius > canvas.width || bomb.x - bomb.radius < 0) {
-                    bomb.dx = -bomb.dx;
-                }
-                if (bomb.y + bomb.radius > canvas.height || bomb.y - bomb.radius < 0) {
-                    bomb.dy = -bomb.dy;
-                }
-            }
-
-            if (redCircle.x + redCircle.radius > canvas.width) {
-                redCircle.x = canvas.width - redCircle.radius;
-            } else if (redCircle.x - redCircle.radius < 0) {
-                redCircle.x = redCircle.radius;
-            }
-            if (redCircle.y + redCircle.radius > canvas.height) {
-                redCircle.y = canvas.height - redCircle.radius;
-            } else if (redCircle.y - redCircle.radius < 0) {
-                redCircle.y = redCircle.radius;
-            }
-
-            requestAnimationFrame(draw);
+            requestAnimationFrame(gameLoop);
         }
 
         window.onload = function() {
-            draw();
+            resizeCanvas(); 
+            createTraumas();
+            drawUI();
+            requestAnimationFrame(gameLoop);
         };
     </script>
 </body>

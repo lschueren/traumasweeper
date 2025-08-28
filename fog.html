@@ -1,5 +1,3 @@
-this is a game.
-the Level Up continue button does not work
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -163,7 +161,7 @@ the Level Up continue button does not work
         let healthFlashTimeout = null;
         let isFlashing = false;
         let keys = {};
-        let animationFrame = 0;
+        let frame = 0; // Use a dedicated frame counter for animations
         let isGameOver = false;
         let isLevelUp = false;
         let gameActive = true;
@@ -172,17 +170,19 @@ the Level Up continue button does not work
         const fogCtx = fogCanvas.getContext('2d');
         fogCtx.canvas.willReadFrequently = true;
 
+        // Player object with Bomberman sprite properties
         const player = {
             x: canvas.width / 2,
             y: canvas.height / 2,
-            radius: 10,
-            color: 'red',
+            radius: 10, 
             dx: 0,
             dy: 0,
             health: 100,
             maxHealth: 100,
             isInvincible: false,
-            flashTimer: 0
+            flashTimer: 0,
+            // Sprite direction: 0=down, 1=up, 2=left, 3=right
+            direction: 0
         };
         const playerSpeed = 4;
         const initialClearingRadius = 25;
@@ -247,14 +247,18 @@ the Level Up continue button does not work
 
             if (keys['ArrowRight'] || keys['d']) {
                 player.dx = playerSpeed;
+                player.direction = 3; // Right
             } else if (keys['ArrowLeft'] || keys['a']) {
                 player.dx = -playerSpeed;
+                player.direction = 2; // Left
             }
 
             if (keys['ArrowDown'] || keys['s']) {
                 player.dy = playerSpeed;
+                player.direction = 0; // Down
             } else if (keys['ArrowUp'] || keys['w']) {
                 player.dy = -playerSpeed;
+                player.direction = 1; // Up
             }
         }
         
@@ -343,7 +347,7 @@ the Level Up continue button does not work
             if (trauma.isRevealed) {
                 const eyeYOffset = -2;
                 ctx.fillStyle = 'white';
-                if (animationFrame === 0) {
+                if (frame % 2 === 0) {
                     ctx.fillRect(-3, eyeYOffset, 2, 2);
                     ctx.fillRect(1, eyeYOffset, 2, 2);
                 } else {
@@ -461,16 +465,87 @@ the Level Up continue button does not work
               healthBar.style.width = `${(player.health / player.maxHealth) * 100}%`;
             }
         }
-
-        function drawPlayer() {
+        
+        // This function draws the Bomberman sprite with a walk cycle
+        function drawBomberman() {
             if (player.isInvincible && Math.floor(player.flashTimer / 5) % 2 === 0) {
                 return;
             }
+
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            
+            // Define colors
+            const white = '#ffffff';
+            const lightBlue = '#93c5fd';
+            const blue = '#2b6cb0';
+            const black = '#000000';
+            
+            ctx.strokeStyle = black;
+            ctx.lineWidth = 1;
+
+            const isWalking = player.dx !== 0 || player.dy !== 0;
+            const step = isWalking && Math.floor(frame / 10) % 2 === 0 ? 1 : 0; // Simple walk cycle animation
+
+            // Body
+            ctx.fillStyle = white;
+            ctx.fillRect(-8, -10, 16, 16);
+            ctx.strokeRect(-8, -10, 16, 16);
+            
+            // Head and Helmet
+            ctx.fillStyle = white;
             ctx.beginPath();
-            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2, false);
-            ctx.fillStyle = player.color;
+            ctx.arc(0, -10, 8, 0, Math.PI * 2);
             ctx.fill();
-            ctx.closePath();
+            ctx.stroke();
+
+            // Eyes
+            ctx.fillStyle = black;
+            if (player.direction === 0) { // Down
+                ctx.fillRect(-4, -13, 2, 2);
+                ctx.fillRect(2, -13, 2, 2);
+            } else if (player.direction === 1) { // Up
+                ctx.fillRect(-4, -13, 2, 2);
+                ctx.fillRect(2, -13, 2, 2);
+            } else if (player.direction === 2) { // Left
+                ctx.fillRect(-6, -13, 2, 2);
+                ctx.fillRect(-2, -13, 2, 2);
+            } else { // Right
+                ctx.fillRect(4, -13, 2, 2);
+                ctx.fillRect(-0, -13, 2, 2);
+            }
+
+            // Helmet fins
+            ctx.fillStyle = lightBlue;
+            ctx.fillRect(-10, -15, 2, 4);
+            ctx.strokeRect(-10, -15, 2, 4);
+            ctx.fillRect(8, -15, 2, 4);
+            ctx.strokeRect(8, -15, 2, 4);
+            
+            // Suit details
+            ctx.fillStyle = blue;
+            ctx.fillRect(-6, 2, 12, 4); // Belt
+            ctx.strokeRect(-6, 2, 12, 4);
+            ctx.fillRect(-8, 4, 2, 4); // Left arm
+            ctx.strokeRect(-8, 4, 2, 4);
+            ctx.fillRect(6, 4, 2, 4); // Right arm
+            ctx.strokeRect(6, 4, 2, 4);
+            
+            // Legs and feet (with walk cycle)
+            ctx.fillStyle = blue;
+            if (step === 0) {
+                ctx.fillRect(-6, 6, 4, 4);
+                ctx.strokeRect(-6, 6, 4, 4);
+                ctx.fillRect(2, 6, 4, 4);
+                ctx.strokeRect(2, 6, 4, 4);
+            } else {
+                ctx.fillRect(-4, 6, 4, 4);
+                ctx.strokeRect(-4, 6, 4, 4);
+                ctx.fillRect(-2, 6, 4, 4);
+                ctx.strokeRect(-2, 6, 4, 4);
+            }
+            
+            ctx.restore();
         }
 
         function drawUI() {
@@ -549,26 +624,26 @@ the Level Up continue button does not work
             gameActive = true;
         }
 
-     function nextLevel() {
-    hideMessageBox('levelUpBox');
-    player.x = canvas.width / 2;
-    player.y = canvas.height / 2;
-    player.dx = 0;
-    player.dy = 0;
-    player.health = 100;
+      function nextLevel() {
+        hideMessageBox('levelUpBox');
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
+        player.dx = 0;
+        player.dy = 0;
+        player.health = 100;
 
-    isLevelUp = false;        // reset flag
-    gameActive = true;        // make sure loop runs again
+        isLevelUp = false;        // reset flag
+        gameActive = true;        // make sure loop runs again
 
-    clearingRadius += 5;
-    keys = {};
-    floatingNumbers.length = 0;
+        clearingRadius += 5;
+        keys = {};
+        floatingNumbers.length = 0;
 
-    createTraumas();
-    fogCtx.fillStyle = 'black';
-    fogCtx.fillRect(0, 0, fogCanvas.width, fogCanvas.height);
-    drawUI();
-}
+        createTraumas();
+        fogCtx.fillStyle = 'black';
+        fogCtx.fillRect(0, 0, fogCanvas.width, fogCanvas.height);
+        drawUI();
+    }
 
         document.addEventListener('keydown', (e) => {
             if (!gameActive) return;
@@ -620,7 +695,7 @@ the Level Up continue button does not work
 
                 clearFogAtPlayer();
                 ctx.drawImage(fogCanvas, 0, 0);
-                drawPlayer();
+                drawBomberman();
                 
                 const revealedTraumas = traumas.filter(trauma => trauma.isRevealed);
                 for (const trauma of revealedTraumas) {
@@ -679,18 +754,19 @@ the Level Up continue button does not work
                     }
                 }
 
-                animationFrame = (animationFrame + 1) % 2;
+                // The fix is here: using 'frame' instead of the undefined 'animationFrame'
+                frame++;
             }
             
       if (isGameOver) {
-    showMessageBox('gameOverBox');
-    gameActive = false;
-} else if (!isLevelUp && traumas.length === 0) {  // only trigger once
-    isLevelUp = true;
-    currentLevel++;
-    showMessageBox('levelUpBox');
-    gameActive = false;
-}
+        showMessageBox('gameOverBox');
+        gameActive = false;
+      } else if (!isLevelUp && traumas.length === 0) {
+        isLevelUp = true;
+        currentLevel++;
+        showMessageBox('levelUpBox');
+        gameActive = false;
+      }
 
             requestAnimationFrame(gameLoop);
         }

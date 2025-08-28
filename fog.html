@@ -393,14 +393,15 @@
                             }
                             flashHealthBar(true);
                             floatingNumbers.push({
-                                x: trauma.x,
-                                y: trauma.y,
-                                value: 1,
-                                alpha: 1,
-                                color: 'green',
-                                dx: trauma.originalDx,
-                                dy: trauma.originalDy
-                            });
+    x: trauma.x,
+    y: trauma.y - trauma.radius,
+    value: 1,
+    alpha: 1,
+    color: 'green',
+    anchorX: trauma.x,
+    anchorY: trauma.y,
+    lifetime: 60
+});
                         }
                     }
                 }
@@ -414,35 +415,46 @@
             }
         }
 
-        function drawFloatingNumbers() {
-            for (let i = floatingNumbers.length - 1; i >= 0; i--) {
-                const num = floatingNumbers[i];
-                ctx.save();
-                ctx.fillStyle = `rgba(${num.color === 'green' ? '0, 255, 0' : '255, 0, 0'}, ${num.alpha})`;
-                ctx.font = 'bold 16px "Pixelated Font", monospace';
-                ctx.textAlign = 'center';
+      function drawFloatingNumbers() {
+    for (let i = floatingNumbers.length - 1; i >= 0; i--) {
+        const num = floatingNumbers[i];
+        ctx.save();
+        ctx.fillStyle = `rgba(${num.color === 'green' ? '0, 255, 0' : '255, 0, 0'}, ${num.alpha})`;
+        ctx.font = 'bold 16px "Pixelated Font", monospace';
+        ctx.textAlign = 'center';
 
-                const displayText = num.color === 'green' ? `+${Math.round(num.value)}` : `-${Math.round(num.value)}`;
-                
-                ctx.fillText(displayText, num.x, num.y);
-                ctx.restore();
+        const displayText = num.color === 'green' ? `+${Math.round(num.value)}` : `-${Math.round(num.value)}`;
+        
+        ctx.fillText(displayText, num.x, num.y);
+        ctx.restore();
 
-                if (num.color === 'red') {
-                    num.x += player.dx;
-                    num.y += player.dy;
-                } else {
-                    num.x += num.dx;
-                    num.y += num.dy;
-                }
-
-                num.y -= 0.5;
-                num.alpha -= 0.02;
-
-                if (num.alpha <= 0) {
-                    floatingNumbers.splice(i, 1);
-                }
+        // Check if the number is red (anchored to the player)
+        if (num.color === 'red') {
+            num.anchorX += player.dx;
+            num.anchorY += player.dy;
+            num.x = num.anchorX;
+            num.y = num.anchorY - (60 - num.lifetime) * 0.5;
+        } 
+        // Check if the number is green (anchored to a trauma)
+        else if (num.color === 'green') {
+            const trauma = traumas.find(t => t.x === num.anchorX && t.y === num.anchorY);
+            if (trauma) {
+                num.anchorX += trauma.dx;
+                num.anchorY += trauma.dy;
             }
+            num.x = num.anchorX;
+            num.y = num.anchorY - (60 - num.lifetime) * 0.5;
         }
+
+        // Apply fading and lifetime reduction
+        num.alpha -= 0.02;
+        num.lifetime--;
+
+        if (num.lifetime <= 0) {
+            floatingNumbers.splice(i, 1);
+        }
+    }
+}
         
         function flashHealthBar(isHealing) {
             clearTimeout(healthFlashTimeout);
@@ -579,14 +591,15 @@
                         trauma.hitByRing = false;
                         flashHealthBar(false);
                         floatingNumbers.push({
-                            x: player.x,
-                            y: player.y - player.radius,
-                            value: damage,
-                            alpha: 1,
-                            color: 'red',
-                            dx: player.dx,
-                            dy: player.dy
-                        });
+    x: player.x,
+    y: player.y - player.radius,
+    value: damage,
+    alpha: 1,
+    color: 'red',
+    anchorX: player.x,
+    anchorY: player.y,
+    lifetime: 60 // A counter to track its lifespan
+});
                     }
                 }
             }
